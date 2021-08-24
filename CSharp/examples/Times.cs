@@ -53,6 +53,11 @@ namespace TimesTest
             }
         }
 
+        private static void TestCase(bool result, bool expected)
+        {
+            if (result != expected) throw new TestCaseException();
+        }
+
         private static void RunTestCases()
         {
             Action<string, IEnumerable<ql.Period>> writePeriods = (heading, periods2Write) =>
@@ -64,11 +69,6 @@ namespace TimesTest
                     Console.Write($"{itemAsString}  ");
                 }
                 Console.WriteLine();
-            };
-
-            Action<bool> testCase = (testResult) =>
-            {
-                if (!testResult) throw new TestCaseException();
             };
 
             var tenorNull = null as ql.Period;
@@ -88,23 +88,23 @@ namespace TimesTest
 
             writePeriods(" After sorting", periods);
 
-            testCase(periods[0] == tenorNull);
-            testCase(periods[1] == tenor03M);
-            testCase(periods[2] == tenor06M);
-            testCase(periods[3] == tenor01Y);
-            testCase(periods[4] == tenor02Y);
+            TestCase(periods[0] == tenorNull, expected: true);
+            TestCase(periods[1] == tenor03M, expected: true);
+            TestCase(periods[2] == tenor06M, expected: true);
+            TestCase(periods[3] == tenor01Y, expected: true);
+            TestCase(periods[4] == tenor02Y, expected: true);
 
 
             #region test Period.CompareTo(Period)
 
             Console.WriteLine("test Period.CompareTo(Period)");
 
-            testCase(tenor12M.CompareTo(tenorNull) > 0);
-            testCase(tenor12M.CompareTo(tenor03M) > 0);
-            testCase(tenor12M.CompareTo(tenor06M) > 0);
-            testCase(tenor12M.CompareTo(tenor01Y) == 0);
-            testCase(tenor01Y.CompareTo(tenor01Y) == 0);
-            testCase(tenor12M.CompareTo(tenor02Y) < 0);
+            TestCase(tenor12M.CompareTo(tenorNull) > 0, expected: true);
+            TestCase(tenor12M.CompareTo(tenor03M) > 0, expected: true);
+            TestCase(tenor12M.CompareTo(tenor06M) > 0, expected: true);
+            TestCase(tenor12M.CompareTo(tenor01Y) == 0, expected: true);
+            TestCase(tenor01Y.CompareTo(tenor01Y) == 0, expected: true);
+            TestCase(tenor12M.CompareTo(tenor02Y) < 0, expected: true);
 
             #endregion
 
@@ -112,14 +112,14 @@ namespace TimesTest
 
             Console.WriteLine("test Period == Period");
 
-            testCase(tenorNull == null);
-            testCase(null == tenorNull);
-            testCase(!(tenorNull == tenor12M));
-            testCase(!(tenor12M == null));
-            testCase(tenor12M == tenor12M);
-            testCase(tenor12M == tenor01Y);
-            testCase(!(tenor12M == tenor06M));
-            testCase(!(tenor06M == tenor12M));
+            TestCase(tenorNull == null, expected: true);
+            TestCase(null == tenorNull, expected: true);
+            TestCase(tenorNull == tenor12M, expected: false);
+            TestCase(tenor12M == null, expected: false);
+            TestCase(tenor12M == tenor12M, expected: true);
+            TestCase(tenor12M == tenor01Y, expected: true);
+            TestCase(tenor12M == tenor06M, expected: false);
+            TestCase(tenor06M == tenor12M, expected: false);
 
             #endregion
 
@@ -127,13 +127,13 @@ namespace TimesTest
 
             Console.WriteLine("test Period != Period");
 
-            testCase(!(tenorNull != null));
-            testCase(!(null != tenorNull));
-            testCase(tenorNull != tenor12M);
-            testCase(tenor12M != null);
-            testCase(!(tenor12M != tenor12M));
-            testCase(!(tenor12M != tenor01Y));
-            testCase(tenor12M != tenor06M);
+            TestCase(tenorNull != null, expected: false);
+            TestCase(null != tenorNull, expected: false);
+            TestCase(tenorNull != tenor12M, expected: true);
+            TestCase(tenor12M != null, expected: true);
+            TestCase(tenor12M != tenor12M, expected: false);
+            TestCase(tenor12M != tenor01Y, expected: false);
+            TestCase(tenor12M != tenor06M, expected: true);
 
             #endregion
 
@@ -141,14 +141,14 @@ namespace TimesTest
 
             Console.WriteLine("test Period < Period");
 
-            testCase(!(tenorNull < null));
-            testCase(!(null < tenorNull));
-            testCase(tenorNull < tenor12M);
-            testCase(!(tenor12M < null));
-            testCase(!(tenor12M < tenor12M));
-            testCase(!(tenor12M < tenor01Y));
-            testCase(!(tenor12M < tenor06M));
-            testCase(tenor06M < tenor12M);
+            TestCase(tenorNull < null, expected: false);
+            TestCase(null < tenorNull, expected: false);
+            TestCase(tenorNull < tenor12M, expected: true);
+            TestCase(tenor12M < null, expected: false);
+            TestCase(tenor12M < tenor12M, expected: false);
+            TestCase(tenor12M < tenor01Y, expected: false);
+            TestCase(tenor12M < tenor06M, expected: false);
+            TestCase(tenor06M < tenor12M, expected: true);
 
             #endregion
 
@@ -156,14 +156,14 @@ namespace TimesTest
 
             Console.WriteLine("test Period <= Period");
 
-            testCase(tenorNull <= null);
-            testCase(null <= tenorNull);
-            testCase(tenorNull <= tenor12M);
-            testCase(!(tenor12M <= null));
-            testCase(tenor12M <= tenor12M);
-            testCase(tenor12M <= tenor01Y);
-            testCase(!(tenor12M <= tenor06M));
-            testCase(tenor06M <= tenor12M);
+            TestCase(tenorNull <= null, expected: true);
+            TestCase(null <= tenorNull, expected: true);
+            TestCase(tenorNull <= tenor12M, expected: true);
+            TestCase(tenor12M <= null, expected: false);
+            TestCase(tenor12M <= tenor12M, expected: true);
+            TestCase(tenor12M <= tenor01Y, expected: true);
+            TestCase(tenor12M <= tenor06M, expected: false);
+            TestCase(tenor06M <= tenor12M, expected: true);
 
             #endregion
 
@@ -171,14 +171,14 @@ namespace TimesTest
 
             Console.WriteLine("test Period > Period");
 
-            testCase(!(tenorNull > null));
-            testCase(!(null > tenorNull));
-            testCase(!(tenorNull > tenor12M));
-            testCase(tenor12M > null);
-            testCase(!(tenor12M > tenor12M));
-            testCase(!(tenor12M > tenor01Y));
-            testCase(tenor12M > tenor06M);
-            testCase(!(tenor06M > tenor12M));
+            TestCase(tenorNull > null, expected: false);
+            TestCase(null > tenorNull, expected: false);
+            TestCase(tenorNull > tenor12M, expected: false);
+            TestCase(tenor12M > null, expected: true);
+            TestCase(tenor12M > tenor12M, expected: false);
+            TestCase(tenor12M > tenor01Y, expected: false);
+            TestCase(tenor12M > tenor06M, expected: true);
+            TestCase(tenor06M > tenor12M, expected: false);
 
             #endregion
 
@@ -186,22 +186,22 @@ namespace TimesTest
 
             Console.WriteLine("test Period >= Period");
 
-            testCase(tenorNull >= null);
-            testCase(null >= tenorNull);
-            testCase(!(tenorNull >= tenor12M));
-            testCase(tenor12M >= null);
-            testCase(tenor12M >= tenor12M);
-            testCase(tenor12M >= tenor01Y);
-            testCase(tenor12M >= tenor06M);
-            testCase(!(tenor06M >= tenor12M));
+            TestCase(tenorNull >= null, expected: true);
+            TestCase(null >= tenorNull, expected: true);
+            TestCase(tenorNull >= tenor12M, expected: false);
+            TestCase(tenor12M >= null, expected: true);
+            TestCase(tenor12M >= tenor12M, expected: true);
+            TestCase(tenor12M >= tenor01Y, expected: true);
+            TestCase(tenor12M >= tenor06M, expected: true);
+            TestCase(tenor06M >= tenor12M, expected: false);
 
             #endregion
 
             Console.WriteLine("test Period.ToString()");
-            testCase(tenor01Y.ToString() == tenor12M.ToString());
+            TestCase(tenor01Y.ToString() == tenor12M.ToString(), expected: true);
 
             Console.WriteLine("test Period.GetHashCode()");
-            testCase(tenor01Y.GetHashCode() == tenor12M.GetHashCode());
+            TestCase(tenor01Y.GetHashCode() == tenor12M.GetHashCode(), expected: true);
 
             Console.WriteLine("test that uncomparable periods throw");
             Func<bool> compare91Dversus03MthrowsApplicationException = () =>
@@ -218,7 +218,7 @@ namespace TimesTest
                 return hasThrown;
             };
 
-            testCase(compare91Dversus03MthrowsApplicationException());
+            TestCase(compare91Dversus03MthrowsApplicationException(), expected: true);
         }
     }
 }
