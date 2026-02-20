@@ -32,92 +32,73 @@ template <class I>
 class SafeInterpolation {
   public:
     SafeInterpolation(const Array& x, const Array& y)
-    : x_(x), y_(y), f_(x_.begin(),x_.end(),y_.begin()) {}
-    Real operator()(Real x, bool allowExtrapolation=false) {
+    : x_(x), y_(y), f_(x_.begin(), x_.end(), y_.begin()) {}
+    Real operator()(Real x, bool allowExtrapolation = false) const {
         return f_(x, allowExtrapolation);
+    }
+    Real primitive(Real x, bool allowExtrapolation = false) const {
+        return f_.primitive(x, allowExtrapolation);
+    }
+    Real derivative(Real x, bool allowExtrapolation = false) const {
+        return f_.derivative(x, allowExtrapolation);
+    }
+    Real secondDerivative(Real x, bool allowExtrapolation = false) const {
+        return f_.secondDerivative(x, allowExtrapolation);
     }
     Array x_, y_;
     I f_;
 };
 %}
 
-%define make_safe_interpolation(T,Alias)
+%define make_safe_interpolation(T)
 %{
 typedef SafeInterpolation<QuantLib::T> Safe##T;
 %}
-%rename(Alias) Safe##T;
+%rename(T) Safe##T;
 class Safe##T {
     #if defined(SWIGCSHARP)
     %rename(call) operator();
     #endif
   public:
     Safe##T(const Array& x, const Array& y);
-    Real operator()(Real x, bool allowExtrapolation=false);
+    Real operator()(Real x, bool allowExtrapolation = false) const;
+    Real primitive(Real x, bool allowExtrapolation = false) const;
+    Real derivative(Real x, bool allowExtrapolation = false) const;
+    Real secondDerivative(Real x, bool allowExtrapolation = false) const;
 };
 %enddef
 
-make_safe_interpolation(LinearInterpolation,LinearInterpolation);
-make_safe_interpolation(LogLinearInterpolation,LogLinearInterpolation);
+make_safe_interpolation(LinearInterpolation);
+make_safe_interpolation(LogLinearInterpolation);
 
-make_safe_interpolation(BackwardFlatInterpolation,BackwardFlatInterpolation);
-make_safe_interpolation(ForwardFlatInterpolation,ForwardFlatInterpolation);
+make_safe_interpolation(BackwardFlatInterpolation);
+make_safe_interpolation(ForwardFlatInterpolation);
 
-make_safe_interpolation(CubicNaturalSpline,CubicNaturalSpline);
-make_safe_interpolation(LogCubicNaturalSpline,LogCubicNaturalSpline);
-make_safe_interpolation(MonotonicCubicNaturalSpline,MonotonicCubicNaturalSpline);
-make_safe_interpolation(MonotonicLogCubicNaturalSpline,MonotonicLogCubicNaturalSpline);
+make_safe_interpolation(CubicNaturalSpline);
+make_safe_interpolation(LogCubicNaturalSpline);
+make_safe_interpolation(MonotonicCubicNaturalSpline);
+make_safe_interpolation(MonotonicLogCubicNaturalSpline);
 
-make_safe_interpolation(KrugerCubic,KrugerCubic);
-make_safe_interpolation(KrugerLogCubic,KrugerLogCubic);
+make_safe_interpolation(KrugerCubic);
+make_safe_interpolation(KrugerLogCubic);
 
-make_safe_interpolation(FritschButlandCubic,FritschButlandCubic);
-make_safe_interpolation(FritschButlandLogCubic,FritschButlandLogCubic);
+make_safe_interpolation(FritschButlandCubic);
+make_safe_interpolation(FritschButlandLogCubic);
 
-make_safe_interpolation(Parabolic,Parabolic);
-make_safe_interpolation(LogParabolic,LogParabolic);
-make_safe_interpolation(MonotonicParabolic,MonotonicParabolic);
-make_safe_interpolation(MonotonicLogParabolic,MonotonicLogParabolic);
+make_safe_interpolation(Parabolic);
+make_safe_interpolation(LogParabolic);
+make_safe_interpolation(MonotonicParabolic);
+make_safe_interpolation(MonotonicLogParabolic);
 
-make_safe_interpolation(LagrangeInterpolation,LagrangeInterpolation); 
-
-%define extend_spline(T)
-%extend Safe##T {
-    Real derivative(Real x, bool extrapolate = false) {
-        return self->f_.derivative(x,extrapolate);
-    }
-    Real secondDerivative(Real x, bool extrapolate = false) {
-        return self->f_.secondDerivative(x,extrapolate);
-    }
-    Real primitive(Real x, bool extrapolate = false) {
-        return self->f_.primitive(x,extrapolate);
-    }
-}
-%enddef
-
-extend_spline(CubicNaturalSpline);
-extend_spline(LogCubicNaturalSpline);
-extend_spline(MonotonicCubicNaturalSpline);
-extend_spline(MonotonicLogCubicNaturalSpline);
-
-extend_spline(KrugerCubic);
-extend_spline(KrugerLogCubic);
-
-extend_spline(FritschButlandCubic);
-extend_spline(FritschButlandLogCubic);
-
-extend_spline(Parabolic);
-extend_spline(LogParabolic);
-extend_spline(MonotonicParabolic);
-extend_spline(MonotonicLogParabolic);
-
+make_safe_interpolation(LagrangeInterpolation);
 %{
 // safe versions which copy their arguments
 template <class I>
 class SafeInterpolation2D {
   public:
     SafeInterpolation2D(const Array& x, const Array& y, const Matrix& m)
-    : x_(x), y_(y), m_(m), f_(x_.begin(),x_.end(),y_.begin(),y_.end(),m_) {}
-    Real operator()(Real x, Real y, bool allowExtrapolation=false) {
+    : x_(x), y_(y), m_(m), f_(x_.begin(), x_.end(), y_.begin(), y_.end(), m_) {}
+    Real operator()(Real x, Real y, bool allowExtrapolation = false) const {
         return f_(x,y, allowExtrapolation);
     }
   protected:
@@ -127,23 +108,23 @@ class SafeInterpolation2D {
 };
 %}
 
-%define make_safe_interpolation2d(T,Alias)
+%define make_safe_interpolation2d(T)
 %{
 typedef SafeInterpolation2D<QuantLib::T> Safe##T;
 %}
-%rename(Alias) Safe##T;
+%rename(T) Safe##T;
 class Safe##T {
     #if defined(SWIGCSHARP)
     %rename(call) operator();
     #endif
   public:
     Safe##T(const Array& x, const Array& y, const Matrix& m);
-    Real operator()(Real x, Real y, bool allowExtrapolation=false);
+    Real operator()(Real x, Real y, bool allowExtrapolation = false) const;
 };
 %enddef
 
-make_safe_interpolation2d(BilinearInterpolation,BilinearInterpolation);
-make_safe_interpolation2d(BicubicSpline,BicubicSpline);
+make_safe_interpolation2d(BilinearInterpolation);
+make_safe_interpolation2d(BicubicSpline);
 
 
 // interpolation traits
