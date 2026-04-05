@@ -42,6 +42,8 @@ using QuantLib::DiscountingSwapEngine;
 using QuantLib::FloatFloatSwap;
 using QuantLib::OvernightIndexedSwap;
 using QuantLib::MakeOIS;
+using QuantLib::MultipleResetsSwap;
+using QuantLib::MakeMultipleResetsSwap;
 using QuantLib::ZeroCouponSwap;
 using QuantLib::EquityTotalReturnSwap;
 using QuantLib::simplifyNotificationGraph;
@@ -183,6 +185,8 @@ class MakeVanillaSwap {
         MakeVanillaSwap& withFloatingLegDayCount(const DayCounter& dc);
         MakeVanillaSwap& withFloatingLegSpread(Spread sp);
 
+        MakeVanillaSwap& withMaturityEndOfMonth(bool flag = true);
+
         MakeVanillaSwap& withDiscountingTermStructure(
                               const Handle<YieldTermStructure>& discountCurve);
         MakeVanillaSwap& withPricingEngine(
@@ -237,6 +241,7 @@ _MAKEVANILLA_METHODS = {
     "pricingEngine": "withPricingEngine",
     "withIndexedCoupons": "withIndexedCoupons",
     "atParCoupons": "withAtParCoupons",
+    "maturityEndOfMonth": "withMaturityEndOfMonth", 
 }
 
 def MakeVanillaSwap(swapTenor, iborIndex, fixedRate=None, forwardStart=Period(0, Days), **kwargs):
@@ -362,6 +367,8 @@ class FloatFloatSwap : public Swap {
         const std::vector<Real> &flooredRate2 = std::vector<Real>(),
         BusinessDayConvention paymentConvention1 = Following,
         BusinessDayConvention paymentConvention2 = Following);
+    Spread fairSpread1();
+    Spread fairSpread2();
 };
 
 %shared_ptr(OvernightIndexedSwap)
@@ -475,6 +482,7 @@ class MakeOIS {
         MakeOIS& withFixedLegTerminationDateConvention(BusinessDayConvention bdc);
         MakeOIS& withOvernightLegTerminationDateConvention(BusinessDayConvention bdc);
         MakeOIS& withEndOfMonth(bool flag = true);
+        MakeOIS& withMaturityEndOfMonth(bool flag = true);
         MakeOIS& withFixedLegEndOfMonth(bool flag = true);
         MakeOIS& withOvernightLegEndOfMonth(bool flag = true);
         MakeOIS& withFixedLegDayCount(const DayCounter& dc);
@@ -518,6 +526,7 @@ _MAKEOIS_METHODS = {
     "fixedLegTerminationDateConvention": "withFixedLegTerminationDateConvention",
     "overnightLegTerminationDateConvention": "withOvernightLegTerminationDateConvention",
     "endOfMonth": "withEndOfMonth",
+    "maturityEndOfMonth": "withMaturityEndOfMonth", 
     "fixedLegEndOfMonth": "withFixedLegEndOfMonth",
     "overnightLegEndOfMonth": "withOvernightLegEndOfMonth",
     "fixedLegDayCount": "withFixedLegDayCount",
@@ -535,6 +544,92 @@ def MakeOIS(swapTenor, overnightIndex, fixedRate=None, fwdStart=Period(0, Days),
     mv = _MakeOIS(swapTenor, overnightIndex, fixedRate, fwdStart)
     _apply_kwargs("MakeOIS", _MAKEOIS_METHODS, mv, kwargs)
     return mv.makeOIS()
+}
+#endif
+
+
+%shared_ptr(MultipleResetsSwap)
+class MultipleResetsSwap : public FixedVsFloatingSwap {
+    #if !defined(SWIGJAVA) && !defined(SWIGCSHARP)
+    %feature("kwargs") MultipleResetsSwap;
+    #endif
+  public:
+    MultipleResetsSwap(Type type,
+                       Real nominal,
+                       Schedule fixedSchedule,
+                       Rate fixedRate,
+                       DayCounter fixedDayCount,
+                       Schedule fullResetSchedule,
+                       const ext::shared_ptr<IborIndex>& iborIndex,
+                       Size resetsPerCoupon,
+                       Spread spread = 0.0,
+                       RateAveraging::Type averagingMethod = RateAveraging::Compound,
+                       ext::optional<BusinessDayConvention> paymentConvention = ext::nullopt,
+                       Integer paymentLag = 0,
+                       const Calendar& paymentCalendar = Calendar());
+
+    const Schedule& fullResetSchedule() const;
+    Size resetsPerCoupon() const;
+    RateAveraging::Type averagingMethod() const;
+};
+
+
+#if defined(SWIGPYTHON)
+%rename (_MakeMultipleResetsSwap) MakeMultipleResetsSwap;
+#endif
+class MakeMultipleResetsSwap {
+  public:
+    MakeMultipleResetsSwap(const Period& tenor,
+                           const ext::shared_ptr<IborIndex>& iborIndex,
+                           Size resetsPerCoupon);
+
+    %extend {
+        ext::shared_ptr<MultipleResetsSwap> makeSwap() {
+            return (ext::shared_ptr<MultipleResetsSwap>)(* $self);
+        }
+    }
+
+    MakeMultipleResetsSwap& receiveFixed(bool flag = true);
+    MakeMultipleResetsSwap& withType(Swap::Type type);
+    MakeMultipleResetsSwap& withNominal(Real n);
+    MakeMultipleResetsSwap& withFixedRate(Rate fixedRate);
+    MakeMultipleResetsSwap& withSettlementDays(Natural settlementDays);
+    MakeMultipleResetsSwap& withEffectiveDate(const Date&);
+    MakeMultipleResetsSwap& withTerminationDate(const Date&);
+    MakeMultipleResetsSwap& withForwardStart(const Period& fwdStart);
+    MakeMultipleResetsSwap& withFixedLegFrequency(Frequency f);
+    MakeMultipleResetsSwap& withFixedLegDayCount(const DayCounter& dc);
+    MakeMultipleResetsSwap& withFixedLegConvention(BusinessDayConvention bdc);
+    MakeMultipleResetsSwap& withFloatingLegSpread(Spread sp);
+    MakeMultipleResetsSwap& withAveragingMethod(RateAveraging::Type m);
+    MakeMultipleResetsSwap& withDiscountingTermStructure(const Handle<YieldTermStructure>&);
+    MakeMultipleResetsSwap& withPricingEngine(const ext::shared_ptr<PricingEngine>&);
+};
+
+#if defined(SWIGPYTHON)
+%pythoncode {
+_MAKEMRS_METHODS = {
+    "receiveFixed": "receiveFixed",
+    "swapType": "withType",
+    "nominal": "withNominal",
+    "fixedRate": "withFixedRate",
+    "settlementDays": "withSettlementDays",
+    "effectiveDate": "withEffectiveDate",
+    "terminationDate": "withTerminationDate",
+    "forwardStart": "withForwardStart",
+    "fixedLegFrequency": "withFixedLegFrequency",
+    "fixedLegDayCount": "withFixedLegDayCount",
+    "fixedLegConvention": "withFixedLegConvention",
+    "floatingLegSpread": "withFloatingLegSpread",
+    "averagingMethod": "withAveragingMethod",
+    "discountingTermStructure": "withDiscountingTermStructure",
+    "pricingEngine": "withPricingEngine",
+}
+
+def MakeMultipleResetsSwap(tenor, iborIndex, resetsPerCoupon, **kwargs):
+    mv = _MakeMultipleResetsSwap(tenor, iborIndex, resetsPerCoupon)
+    _apply_kwargs("MakeMultipleResetsSwap", _MAKEMRS_METHODS, mv, kwargs)
+    return mv.makeSwap()
 }
 #endif
 

@@ -152,9 +152,21 @@ export_piecewise_curve(PiecewiseLogLinearDiscount,Discount,LogLinear);
 export_piecewise_curve(PiecewiseLinearForward,ForwardRate,Linear);
 export_piecewise_curve(PiecewiseLinearZero,ZeroYield,Linear);
 export_piecewise_curve(PiecewiseCubicZero,ZeroYield,Cubic);
-export_piecewise_curve(PiecewiseLogCubicDiscount,Discount,MonotonicLogCubic);
+export_piecewise_curve(PiecewiseLogCubicDiscount,Discount,LogCubic);
+#if defined(SWIGPYTHON)
+export_piecewise_curve(_PiecewiseSplineCubicDiscount,Discount,SplineCubic);
+deprecate_feature_with_message(
+    PiecewiseSplineCubicDiscount,
+    _PiecewiseSplineCubicDiscount,
+    "use PiecewiseNaturalLogCubicDiscount because discount curves should use log interpolations");
+#else
 export_piecewise_curve(PiecewiseSplineCubicDiscount,Discount,SplineCubic);
+#endif
+#if defined(SWIGPYTHON)
+deprecate_feature(PiecewiseKrugerZero, PiecewiseCubicZero);
+#else
 export_piecewise_curve(PiecewiseKrugerZero,ZeroYield,Kruger);
+#endif
 export_piecewise_curve(PiecewiseKrugerLogDiscount,Discount,KrugerLog);
 export_piecewise_curve(PiecewiseConvexMonotoneForward,ForwardRate,ConvexMonotone);
 export_piecewise_curve(PiecewiseConvexMonotoneZero,ZeroYield,ConvexMonotone);
@@ -313,7 +325,7 @@ deprecate_feature(PiecewiseLogLinearDiscountSpread, PiecewiseLogLinearSpreadDisc
 #else
 export_piecewise_spread_curve(PiecewiseLogLinearDiscountSpread,Discount,LogLinear);
 #endif
-export_piecewise_spread_curve(PiecewiseLogCubicSpreadDiscount,Discount,MonotonicLogCubic);
+export_piecewise_spread_curve(PiecewiseLogCubicSpreadDiscount,Discount,LogCubic);
 export_piecewise_spread_curve(PiecewiseNaturalLogCubicSpreadDiscount,Discount,SplineLogCubic);
 export_piecewise_spread_curve(PiecewiseLogMixedLinearCubicSpreadDiscount,Discount,LogMixedLinearCubic);
 

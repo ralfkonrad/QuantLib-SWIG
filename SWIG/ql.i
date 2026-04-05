@@ -30,8 +30,8 @@
 %{
 #include <ql/quantlib.hpp>
 
-#if QL_HEX_VERSION < 0x01410000
-    #error at least QuantLib 1.41 required, please update
+#if QL_HEX_VERSION < 0x01420000
+    #error at least QuantLib 1.42 required, please update
 #endif
 
 #if defined (SWIGJAVA) || defined (SWIGCSHARP) 
@@ -146,6 +146,7 @@ QL_DEPRECATED_DISABLE_WARNING
 %include fra.i
 %include functions.i
 %include futures.i
+%include fxforward.i
 %include gaussian1dmodel.i
 %include grid.i
 %include indexes.i

@@ -33,7 +33,9 @@ using QuantLib::InterpolatedZeroCurve;
 %shared_ptr(InterpolatedZeroCurve<SplineCubic>);
 %shared_ptr(InterpolatedZeroCurve<DefaultLogCubic>);
 %shared_ptr(InterpolatedZeroCurve<MonotonicCubic>);
+#if !defined(SWIGPYTHON)
 %shared_ptr(InterpolatedZeroCurve<Kruger>);
+#endif
 %shared_ptr(InterpolatedZeroCurve<ParabolicCubic>);
 %shared_ptr(InterpolatedZeroCurve<MonotonicParabolicCubic>);
 
@@ -57,12 +59,29 @@ class InterpolatedZeroCurve : public YieldTermStructure {
 };
 
 %template(ZeroCurve) InterpolatedZeroCurve<Linear>;
+#if defined(SWIGPYTHON)
+%template(_LogLinearZeroCurve) InterpolatedZeroCurve<LogLinear>;
+%template(_LogCubicZeroCurve) InterpolatedZeroCurve<DefaultLogCubic>;
+deprecate_feature_with_message(
+    LogLinearZeroCurve,
+    _LogLinearZeroCurve,
+    "use ZeroCurve because zero curves should not use log interpolations");
+deprecate_feature_with_message(
+    LogCubicZeroCurve,
+    _LogCubicZeroCurve,
+    "use KrugerZeroCurve because zero curves should not use log interpolations");
+#else
 %template(LogLinearZeroCurve) InterpolatedZeroCurve<LogLinear>;
+%template(LogCubicZeroCurve) InterpolatedZeroCurve<DefaultLogCubic>;
+#endif
 %template(CubicZeroCurve) InterpolatedZeroCurve<Cubic>;
 %template(NaturalCubicZeroCurve) InterpolatedZeroCurve<SplineCubic>;
-%template(LogCubicZeroCurve) InterpolatedZeroCurve<DefaultLogCubic>;
 %template(MonotonicCubicZeroCurve) InterpolatedZeroCurve<MonotonicCubic>;
+#if defined(SWIGPYTHON)
+deprecate_feature(KrugerZeroCurve, CubicZeroCurve);
+#else
 %template(KrugerZeroCurve) InterpolatedZeroCurve<Kruger>;
+#endif
 %template(ParabolicCubicZeroCurve) InterpolatedZeroCurve<ParabolicCubic>;
 %template(MonotonicParabolicCubicZeroCurve) InterpolatedZeroCurve<MonotonicParabolicCubic>;
 
