@@ -37,6 +37,7 @@
 %include termstructures.i
 %include vectors.i
 %include tuple.i
+%include null.i
 
 %define QL_TYPECHECK_VOLATILITYTYPE       8210    %enddef
 
@@ -49,136 +50,18 @@ using QuantLib::Normal;
 enum VolatilityType { ShiftedLognormal, Normal };
 
 #if defined(SWIGPYTHON)
-%typemap(in) ext::optional<VolatilityType> %{
+%typemap(in) std::optional<VolatilityType> %{
     if ($input == Py_None)
-        $1 = ext::nullopt;
+        $1 = std::nullopt;
     else if (PyLong_Check($input))
         $1 = (VolatilityType)PyLong_AsLong($input);
     else
         SWIG_exception(SWIG_TypeError, "int expected");
 %}
-%typecheck (QL_TYPECHECK_VOLATILITYTYPE) ext::optional<VolatilityType> %{
+%typecheck (QL_TYPECHECK_VOLATILITYTYPE) std::optional<VolatilityType> %{
     $1 = (PyLong_Check($input) || $input == Py_None) ? 1 : 0;
 %}
 #endif
-
-%{
-using QuantLib::VolatilityTermStructure;
-using QuantLib::BlackVolTermStructure;
-using QuantLib::BlackVolTimeExtrapolation;
-using QuantLib::LocalVolTermStructure;
-using QuantLib::OptionletVolatilityStructure;
-using QuantLib::SwaptionVolatilityStructure;
-using QuantLib::YoYOptionletVolatilitySurface;
-%}
-
-%shared_ptr(VolatilityTermStructure);
-class VolatilityTermStructure : public TermStructure {
-  private:
-    VolatilityTermStructure();
-  public:
-    Real minStrike() const;
-    Real maxStrike() const;
-};
-
-
-%shared_ptr(BlackVolTermStructure);
-class BlackVolTermStructure : public VolatilityTermStructure {
-  private:
-    BlackVolTermStructure();
-  public:
-    Volatility blackVol(const Date&, Real strike,
-                        bool extrapolate = false) const;
-    Volatility blackVol(Time, Real strike,
-                        bool extrapolate = false) const;
-    Real blackVariance(const Date&, Real strike,
-                       bool extrapolate = false) const;
-    Real blackVariance(Time, Real strike,
-                       bool extrapolate = false) const;
-    Volatility blackForwardVol(const Date&, const Date&,
-                               Real strike, bool extrapolate = false) const;
-    Volatility blackForwardVol(Time, Time, Real strike,
-                               bool extrapolate = false) const;
-    Real blackForwardVariance(const Date&, const Date&,
-                              Real strike, bool extrapolate = false) const;
-    Real blackForwardVariance(Time, Time, Real strike,
-                              bool extrapolate = false) const;
-};
-
-%template(BlackVolTermStructureHandle) Handle<BlackVolTermStructure>;
-%template(RelinkableBlackVolTermStructureHandle) RelinkableHandle<BlackVolTermStructure>;
-
-
-class BlackVolTimeExtrapolation {
-  public:
-    enum Type { FlatVolatility, UseInterpolator, LinearVariance };
-};
-
-
-%shared_ptr(LocalVolTermStructure);
-class LocalVolTermStructure : public VolatilityTermStructure {
-  private:
-    LocalVolTermStructure();
-  public:
-    Volatility localVol(const Date&, Real u,
-                        bool extrapolate = false) const;
-    Volatility localVol(Time, Real u,
-                        bool extrapolate = false) const;
-};
-
-%template(LocalVolTermStructureHandle) Handle<LocalVolTermStructure>;
-%template(RelinkableLocalVolTermStructureHandle) RelinkableHandle<LocalVolTermStructure>;
-
-
-%shared_ptr(OptionletVolatilityStructure);
-class OptionletVolatilityStructure : public VolatilityTermStructure {
-  private:
-    OptionletVolatilityStructure();
-  public:
-    Volatility volatility(const Date&, Real strike,
-                          bool extrapolate = false) const;
-    Volatility volatility(Time, Real strike,
-                          bool extrapolate = false) const;
-    Real blackVariance(const Date&, Rate strike,
-                       bool extrapolate = false) const ;
-    Real blackVariance(Time, Rate strike,
-                       bool extrapolate = false) const;
-};
-
-%template(OptionletVolatilityStructureHandle) Handle<OptionletVolatilityStructure>;
-%template(RelinkableOptionletVolatilityStructureHandle) RelinkableHandle<OptionletVolatilityStructure>;
-
-
-%shared_ptr(YoYOptionletVolatilitySurface)
-class YoYOptionletVolatilitySurface : public VolatilityTermStructure {
-  private:
-    YoYOptionletVolatilitySurface();
-  public:
-    Period observationLag() const;
-    Real frequency() const;
-    bool indexIsInterpolated() const;
-    Date baseDate() const;
-    Time timeFromBase(const Date& date,
-                      const Period& obsLag = Period(-1,Days)) const;
-    Real minStrike() const;
-    Real maxStrike() const;
-    Volatility baseLevel() const;
-    Volatility volatility(const Date& maturityDate, Real strike,
-                          const Period& obsLag = Period(-1,Days),
-                          bool extrapolate = false) const;
-    Volatility volatility(const Period& optionTenor, Real strike,
-                          const Period& obsLag = Period(-1,Days),
-                          bool extrapolate = false) const;
-    Real totalVariance(const Date& exerciseDate, Rate strike,
-                       const Period& obsLag = Period(-1,Days),
-                       bool extrapolate = false) const ;
-    Real totalVariance(const Period& optionTenor, Rate strike,
-                       const Period& obsLag = Period(-1,Days),
-                       bool extrapolate = false) const;
-};
-
-%template(YoYOptionletVolatilitySurfaceHandle) Handle<YoYOptionletVolatilitySurface>;
-%template(RelinkableYoYOptionletVolatilitySurfaceHandle) RelinkableHandle<YoYOptionletVolatilitySurface>;
 
 
 %{
@@ -223,6 +106,133 @@ SWIG_STD_VECTOR_ENHANCED( ext::shared_ptr<SmileSection> )
 
 
 %{
+using QuantLib::VolatilityTermStructure;
+using QuantLib::BlackVolTermStructure;
+using QuantLib::BlackVolTimeExtrapolation;
+using QuantLib::LocalVolTermStructure;
+using QuantLib::OptionletVolatilityStructure;
+using QuantLib::SwaptionVolatilityStructure;
+using QuantLib::YoYOptionletVolatilitySurface;
+%}
+
+%shared_ptr(VolatilityTermStructure);
+class VolatilityTermStructure : public TermStructure {
+  private:
+    VolatilityTermStructure();
+  public:
+    Real minStrike() const;
+    Real maxStrike() const;
+    BusinessDayConvention businessDayConvention() const;
+};
+
+
+%shared_ptr(BlackVolTermStructure);
+class BlackVolTermStructure : public VolatilityTermStructure {
+  private:
+    BlackVolTermStructure();
+  public:
+    Volatility blackVol(const Date&, Real strike,
+                        bool extrapolate = false) const;
+    Volatility blackVol(Time, Real strike,
+                        bool extrapolate = false) const;
+    Real blackVariance(const Date&, Real strike,
+                       bool extrapolate = false) const;
+    Real blackVariance(Time, Real strike,
+                       bool extrapolate = false) const;
+    Volatility blackForwardVol(const Date&, const Date&,
+                               Real strike, bool extrapolate = false) const;
+    Volatility blackForwardVol(Time, Time, Real strike,
+                               bool extrapolate = false) const;
+    Real blackForwardVariance(const Date&, const Date&,
+                              Real strike, bool extrapolate = false) const;
+    Real blackForwardVariance(Time, Time, Real strike,
+                              bool extrapolate = false) const;
+    ext::shared_ptr<SmileSection> smileSection(const Date& maturity,
+                                               bool extrapolate = false) const;
+    ext::shared_ptr<SmileSection> smileSection(Time maturity,
+                                               bool extrapolate = false) const;
+    doubleOrNull atmLevel(Time t) const;
+};
+
+%template(BlackVolTermStructureHandle) Handle<BlackVolTermStructure>;
+%template(RelinkableBlackVolTermStructureHandle) RelinkableHandle<BlackVolTermStructure>;
+
+
+class BlackVolTimeExtrapolation {
+  public:
+    enum Type { FlatVolatility, UseInterpolator, LinearVariance };
+};
+
+
+%shared_ptr(LocalVolTermStructure);
+class LocalVolTermStructure : public VolatilityTermStructure {
+  private:
+    LocalVolTermStructure();
+  public:
+    Volatility localVol(const Date&, Real u,
+                        bool extrapolate = false) const;
+    Volatility localVol(Time, Real u,
+                        bool extrapolate = false) const;
+};
+
+%template(LocalVolTermStructureHandle) Handle<LocalVolTermStructure>;
+%template(RelinkableLocalVolTermStructureHandle) RelinkableHandle<LocalVolTermStructure>;
+
+
+%shared_ptr(OptionletVolatilityStructure);
+class OptionletVolatilityStructure : public VolatilityTermStructure {
+  private:
+    OptionletVolatilityStructure();
+  public:
+    Volatility volatility(const Date&, Real strike,
+                          bool extrapolate = false) const;
+    Volatility volatility(Time, Real strike,
+                          bool extrapolate = false) const;
+    Real blackVariance(const Date&, Rate strike,
+                       bool extrapolate = false) const ;
+    Real blackVariance(Time, Rate strike,
+                       bool extrapolate = false) const;
+    virtual VolatilityType volatilityType() const;
+    virtual Real displacement() const;
+};
+
+%template(OptionletVolatilityStructureHandle) Handle<OptionletVolatilityStructure>;
+%template(RelinkableOptionletVolatilityStructureHandle) RelinkableHandle<OptionletVolatilityStructure>;
+
+
+%shared_ptr(YoYOptionletVolatilitySurface)
+class YoYOptionletVolatilitySurface : public VolatilityTermStructure {
+  private:
+    YoYOptionletVolatilitySurface();
+  public:
+    Period observationLag() const;
+    Real frequency() const;
+    bool indexIsInterpolated() const;
+    Date baseDate() const;
+    Time timeFromBase(const Date& date,
+                      const Period& obsLag = Period(-1,Days)) const;
+    Real minStrike() const;
+    Real maxStrike() const;
+    Volatility baseLevel() const;
+    Volatility volatility(const Date& maturityDate, Real strike,
+                          const Period& obsLag = Period(-1,Days),
+                          bool extrapolate = false) const;
+    Volatility volatility(const Period& optionTenor, Real strike,
+                          const Period& obsLag = Period(-1,Days),
+                          bool extrapolate = false) const;
+    Real totalVariance(const Date& exerciseDate, Rate strike,
+                       const Period& obsLag = Period(-1,Days),
+                       bool extrapolate = false) const ;
+    Real totalVariance(const Period& optionTenor, Rate strike,
+                       const Period& obsLag = Period(-1,Days),
+                       bool extrapolate = false) const;
+};
+
+%template(YoYOptionletVolatilitySurfaceHandle) Handle<YoYOptionletVolatilitySurface>;
+%template(RelinkableYoYOptionletVolatilitySurfaceHandle) RelinkableHandle<YoYOptionletVolatilitySurface>;
+
+
+%{
 using QuantLib::SwaptionVolatilityStructure;
 %}
 
@@ -240,6 +250,7 @@ class SwaptionVolatilityStructure : public VolatilityTermStructure {
     Real blackVariance(Time start, Time length,
                        Rate strike, bool extrapolate = false) const;
     Date optionDateFromTenor(const Period& p) const;
+    virtual VolatilityType volatilityType() const;
     Real shift(const Period& optionTenor,
                const Period& swapTenor,
                bool extrapolate = false) const;
@@ -579,7 +590,7 @@ class BlackVolatilitySurfaceDelta : public BlackVolTermStructure {
                                 const Handle<YieldTermStructure>& foreignTS,
                                 DeltaVolQuote::DeltaType dt = DeltaVolQuote::DeltaType::Spot,
                                 DeltaVolQuote::AtmType at = DeltaVolQuote::AtmType::AtmDeltaNeutral,
-                                ext::optional<DeltaVolQuote::DeltaType> atmDeltaType = ext::nullopt,
+                                std::optional<DeltaVolQuote::DeltaType> atmDeltaType = std::nullopt,
                                 SmileInterpolationMethod interpolationMethod =
                                         SmileInterpolationMethod::Linear,
                                 bool flatStrikeExtrapolation = false,
@@ -588,7 +599,7 @@ class BlackVolatilitySurfaceDelta : public BlackVolTermStructure {
                                 const Period& switchTenor = 0 * Days,
                                 DeltaVolQuote::DeltaType ltdt = DeltaVolQuote::DeltaType::Fwd,
                                 DeltaVolQuote::AtmType ltat = DeltaVolQuote::AtmType::AtmDeltaNeutral,
-                                ext::optional<DeltaVolQuote::DeltaType> longTermAtmDeltaType = ext::nullopt);
+                                std::optional<DeltaVolQuote::DeltaType> longTermAtmDeltaType = std::nullopt);
 };
 
 
@@ -693,6 +704,34 @@ class SwaptionVolatilityMatrix : public SwaptionVolatilityDiscrete {
     SwaptionVolatilityMatrix(const Date& referenceDate,
                              const Calendar& calendar,
                              BusinessDayConvention bdc,
+                             const std::vector<Period>& optionTenors,
+                             const std::vector<Period>& swapTenors,
+                             const std::vector<std::vector<Handle<Quote> > >& vols,
+                             const DayCounter& dayCounter,
+                             const bool flatExtrapolation = false,
+                             const VolatilityType type = ShiftedLognormal,
+                             const std::vector<std::vector<Real> >& shifts =
+                                          std::vector<std::vector<Real> >());
+    %extend {
+        static ext::shared_ptr<SwaptionVolatilityMatrix> forTenors(
+                const Date& referenceDate,
+                const Calendar& calendar,
+                BusinessDayConvention bdc,
+                const std::vector<Period>& optionTenors,
+                const std::vector<Period>& swapTenors,
+                const Matrix& vols,
+                const DayCounter& dayCounter,
+                const bool flatExtrapolation = false,
+                const VolatilityType type = ShiftedLognormal,
+                const Matrix& shifts = Matrix()) {
+            return ext::make_shared<SwaptionVolatilityMatrix>(
+                referenceDate, calendar, bdc, optionTenors, swapTenors, vols,
+                dayCounter, flatExtrapolation, type, shifts);
+        }
+    }
+    SwaptionVolatilityMatrix(const Date& referenceDate,
+                             const Calendar& calendar,
+                             BusinessDayConvention bdc,
                              const std::vector<Date>& dates,
                              const std::vector<Period>& lengths,
                              const Matrix& vols,
@@ -746,8 +785,6 @@ class SwaptionVolatilityMatrix : public SwaptionVolatilityDiscrete {
             return { (unsigned int)sizes.first, (unsigned int)sizes.second };
         }
     }
-
-    VolatilityType volatilityType() const;
 };
 
 
@@ -864,8 +901,15 @@ class SwaptionVolatilityCube : public SwaptionVolatilityDiscrete {
     public:
         Rate atmStrike(const Date& optionDate,
                        const Period& swapTenor) const;
+        const Handle<SwaptionVolatilityStructure>& atmVol() const;
+        const std::vector<Spread>& strikeSpreads() const;
+        const std::vector<std::vector<Handle<Quote> > >& volSpreads() const;
+        ext::shared_ptr<SwapIndex> swapIndexBase() const;
+        ext::shared_ptr<SwapIndex> shortSwapIndexBase() const;
+        bool vegaWeightedSmileFit() const;
 };
 
+%feature("kwargs") SabrSwaptionVolatilityCube;
 %shared_ptr(SabrSwaptionVolatilityCube);
 class SabrSwaptionVolatilityCube : public SwaptionVolatilityCube {
   public:
@@ -890,7 +934,8 @@ class SabrSwaptionVolatilityCube : public SwaptionVolatilityCube {
              const bool useMaxError = false,
              const Size maxGuesses = 50,
              const bool backwardFlat = false,
-             const Real cutoffStrike = 0.0001);
+             const Real cutoffStrike = 0.0001,
+             const bool singlePassCalibration = false);
     Matrix sparseSabrParameters() const;
     Matrix denseSabrParameters() const;
     Matrix marketVolCube() const;
@@ -919,6 +964,7 @@ class InterpolatedSwaptionVolatilityCube : public SwaptionVolatilityCube {
                                        const ext::shared_ptr<SwapIndex>& swapIndex,
                                        const ext::shared_ptr<SwapIndex>& shortSwapIndex,
                                        bool vegaWeightedSmileFit);
+    const Matrix& volSpreads(Size i) const;
 };
 
 
@@ -994,7 +1040,8 @@ class InterpolatedSmileSection : public SmileSection {
                const Interpolator& interpolator = Interpolator(),
                const DayCounter& dc = Actual365Fixed(),
                const VolatilityType type = ShiftedLognormal,
-               const Real shift = 0.0);
+               const Real shift = 0.0,
+               bool flatStrikeExtrapolation = false);
     InterpolatedSmileSection(
                Time expiryTime,
                const std::vector<Rate>& strikes,
@@ -1003,7 +1050,8 @@ class InterpolatedSmileSection : public SmileSection {
                const Interpolator& interpolator = Interpolator(),
                const DayCounter& dc = Actual365Fixed(),
                const VolatilityType type = ShiftedLognormal,
-               const Real shift = 0.0);
+               const Real shift = 0.0,
+               bool flatStrikeExtrapolation = false);
     InterpolatedSmileSection(
                const Date& d,
                const std::vector<Rate>& strikes,
@@ -1013,7 +1061,8 @@ class InterpolatedSmileSection : public SmileSection {
                const Interpolator& interpolator = Interpolator(),
                const Date& referenceDate = Date(),
                const VolatilityType type = ShiftedLognormal,
-               const Real shift = 0.0);
+               const Real shift = 0.0,
+               bool flatStrikeExtrapolation = false);
     InterpolatedSmileSection(
                const Date& d,
                const std::vector<Rate>& strikes,
@@ -1023,7 +1072,8 @@ class InterpolatedSmileSection : public SmileSection {
                const Interpolator& interpolator = Interpolator(),
                const Date& referenceDate = Date(),
                const VolatilityType type = ShiftedLognormal,
-               const Real shift = 0.0);
+               const Real shift = 0.0,
+               bool flatStrikeExtrapolation = false);
 };
 
 %define export_smileinterpolation_curve(Name,Interpolator)

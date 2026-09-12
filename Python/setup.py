@@ -31,7 +31,7 @@ def define_macros():
     define_macros = []
 
     if py_limited_api():
-        define_macros += [("Py_LIMITED_API", "0x03080000")]
+        define_macros += [("Py_LIMITED_API", "0x03090000")]
 
     if free_threading():
         define_macros += [("SWIGPYTHON_NOGIL", None), ("Py_GIL_DISABLED", None)]
@@ -204,7 +204,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Programming Language :: C++",
     "Programming Language :: Python",
-    "Programming Language :: Python :: Free Threading :: 1 - Unstable",
+    "Programming Language :: Python :: Free Threading :: 2 - Beta",
     "Topic :: Office/Business :: Financial",
     "Topic :: Scientific/Engineering",
 ]
@@ -213,6 +213,16 @@ long_description = """
 QuantLib (https://www.quantlib.org/) is a free/open-source C++ library
 for financial quantitative analysts and developers, aimed at providing
 a comprehensive software framework for quantitative finance.
+
+QuantLib is Non-Copylefted Free Software and OSI Certified Open Source Software.
+
+Free-threading wheels are also provided.  Note, though, that the
+underlying C++ library is not thread-safe.  It has globals (most
+notably, the evaluation date) that in the current version of the
+wheels can't be set per thread.  Also, we suggest to avoid sharing
+objects and state across threads; each thread should have its set of
+curves and instruments.  Given that they calculate and cache results
+lazily, sharing them will probably lead to data races.
 """
 
 
@@ -226,12 +236,12 @@ def free_threading():
 
 with open("./setup.cfg", "w") as f:
     if py_limited_api():
-        f.write("[bdist_wheel]" + os.linesep + "py_limited_api=cp38" + os.linesep)
+        f.write("[bdist_wheel]" + os.linesep + "py_limited_api=cp39" + os.linesep)
 
 
 setup(
     name="QuantLib",
-    version="1.42-rc",
+    version="1.44-dev",
     description="Python bindings for the QuantLib library",
     long_description=long_description,
     long_description_content_type="text/x-rst",

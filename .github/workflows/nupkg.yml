@@ -12,8 +12,11 @@ on:
   workflow_dispatch:
     # manual runs to try out changes in the workflow
     inputs:
-      ref:
-        description: 'Tag or branch to use'
+      qlref:
+        description: 'QuantLib tag or branch to use'
+        required: true
+      qlswigref:
+        description: 'QuantLib-SWIG tag or branch to use'
         required: true
 
 jobs:
@@ -24,13 +27,15 @@ jobs:
     - name: Determine tag or branch to build
       run: |
         if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "REF=${{ github.event.inputs.ref }}" | tee -a $GITHUB_ENV
+            echo "QLREF=${{ github.event.inputs.qlref }}" | tee -a $GITHUB_ENV
+            echo "QLSWIGREF=${{ github.event.inputs.qlswigref }}" | tee -a $GITHUB_ENV
         else
-            echo "REF=${{ github.ref_name }}" | tee -a $GITHUB_ENV
+            echo "QLREF=${{ github.ref_name }}" | tee -a $GITHUB_ENV
+            echo "QLSWIGREF=${{ github.ref_name }}" | tee -a $GITHUB_ENV
         fi
     - name: Setup
       env:
-        SWIG_VERSION: 4.4.1
+        SWIG_VERSION: 4.5.1
       run: |
         sudo apt update
         sudo apt install -y libpcre2-dev libboost-dev tofrodos
@@ -41,10 +46,10 @@ jobs:
             && ./configure --prefix=/usr CXXFLAGS=-O3 \
             && make -j 4 && sudo make install \
             && cd .. && rm -rf swig-${SWIG_VERSION}
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         repository: lballabio/QuantLib
-        ref: ${{ env.REF }}
+        ref: ${{ env.QLREF }}
         path: quantlib
         fetch-depth: 0
         fetch-tags: true
@@ -57,10 +62,10 @@ jobs:
         mkdir ../tarballs
         mv QuantLib-*.tar.gz ../tarballs
         cd ../tarballs && ../quantlib/tools/tgz2zip QuantLib-*.tar.gz && ls -lh
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         repository: lballabio/QuantLib-SWIG
-        ref: ${{ env.REF }}
+        ref: ${{ env.QLSWIGREF }}
         path: quantlib-swig
         fetch-depth: 0
         fetch-tags: true
@@ -83,7 +88,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/download-artifact@v8
       with:
         name: tarballs
@@ -96,7 +101,7 @@ jobs:
     runs-on: windows-2022
     needs: detect-version
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v3
     - name: Setup Boost
@@ -140,7 +145,7 @@ jobs:
       matrix:
         arch: [x86_64, arm64]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup Boost
       run: |
         brew install boost
@@ -171,7 +176,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: detect-version
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup Boost
       run: |
         curl -O -L https://archives.boost.io/release/1.90.0/source/boost_1_90_0.tar.gz
@@ -205,9 +210,9 @@ jobs:
     runs-on: windows-2022
     needs: [dotnet-win-wrap, dotnet-osx-wrap, dotnet-linux-wrap, detect-version]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.x'
     - uses: actions/download-artifact@v8
@@ -256,7 +261,7 @@ jobs:
         dotnet: ['net6.0', 'net8.0', 'net9.0', 'net10.0']
     needs: [dotnet-nupkg, detect-version]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/download-artifact@v8
       with:
         name: tarballs
@@ -273,7 +278,7 @@ jobs:
         name: nupkg-all
         path: C:\local\QuantLib-SWIG-${{ needs.detect-version.outputs.version }}\CSharp\nupkg
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.x'
     - name: Run C# examples
@@ -302,7 +307,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     needs: [dotnet-nupkg, detect-version]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - uses: actions/download-artifact@v8
       with:
         name: tarballs
@@ -319,7 +324,7 @@ jobs:
         name: nupkg-all
         path: QuantLib-SWIG-${{ needs.detect-version.outputs.version }}/CSharp/nupkg
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.x'
     - name: Run C# examples
@@ -358,7 +363,7 @@ jobs:
         name: nupkg-all
         path: C:\local\nupkg
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.x'
     - name: Publish the package to nugettest.org
@@ -382,7 +387,7 @@ jobs:
         name: nupkg-all
         path: C:\local\nupkg
     - name: Setup .NET
-      uses: actions/setup-dotnet@v5
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: '10.0.x'
     - name: Publish the package to nuget.org

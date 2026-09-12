@@ -5,6 +5,7 @@
  Copyright (C) 2010, 2011 Lluis Pujol Bajador
  Copyright (C) 2017, 2018, 2019, 2020 Matthias Lungwitz
  Copyright (C) 2021 Marcin Rybacki
+ Copyright (C) 2026 Kyrylo Protsenko
 
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
@@ -201,6 +202,7 @@ class FloatingRateCoupon : public Coupon {
     Real price(const Handle<YieldTermStructure>& discountCurve) const;
     ext::shared_ptr<InterestRateIndex> index() const;
     void setPricer(const ext::shared_ptr<FloatingRateCouponPricer>& p);
+    ext::shared_ptr<FloatingRateCouponPricer> pricer() const;
 };
 
 %inline %{
@@ -209,6 +211,130 @@ class FloatingRateCoupon : public Coupon {
         return ext::dynamic_pointer_cast<FloatingRateCoupon>(cf);
     }
 %}
+
+
+%{
+using QuantLib::FxReset;
+using QuantLib::FxResetConvention;
+using QuantLib::FxResetPricer;
+using QuantLib::DiscountingFxResetPricer;
+using QuantLib::FxResetCoupon;
+using QuantLib::FxResetNotionalExchange;
+using QuantLib::setFxResetPricer;
+%}
+
+class FxReset {
+  public:
+    FxReset(const Date& fixingDate, const Date& valueDate);
+    Date fixingDate() const;
+    Date valueDate() const;
+};
+
+class FxResetConvention {
+    #if !defined(SWIGJAVA) && !defined(SWIGCSHARP)
+    %feature("kwargs") FxResetConvention;
+    #endif
+  public:
+    FxResetConvention(Natural fixingDays = 0,
+                      const Calendar& fixingCalendar = Calendar());
+    FxReset reset(const Date& valueDate) const;
+    Date valueDate(const Date& fixingDate) const;
+    Natural fixingDays() const;
+    const Calendar& fixingCalendar() const;
+};
+
+%shared_ptr(FxResetPricer)
+class FxResetPricer {
+  private:
+    FxResetPricer();
+  public:
+    virtual Real fxRate(const FxReset& reset) const;
+};
+
+%shared_ptr(DiscountingFxResetPricer)
+class DiscountingFxResetPricer : public FxResetPricer {
+    #if !defined(SWIGJAVA) && !defined(SWIGCSHARP)
+    %feature("kwargs") DiscountingFxResetPricer;
+    #endif
+  public:
+    DiscountingFxResetPricer(
+        const Currency& constantLegCurrency,
+        const Currency& resettableLegCurrency,
+        const Handle<YieldTermStructure>& constantLegCurve,
+        const Handle<YieldTermStructure>& resettableLegCurve,
+        const Handle<Quote>& spotFx,
+        bool spotIsResettablePerConstant,
+        const Date& spotFxSettleDate = Date());
+    Real fxRate(const FxReset& reset) const;
+    const Currency& constantLegCurrency() const;
+    const Currency& resettableLegCurrency() const;
+};
+
+%shared_ptr(FxResetCoupon)
+class FxResetCoupon : public FloatingRateCoupon {
+  public:
+    FxResetCoupon(const ext::shared_ptr<FloatingRateCoupon>& underlying,
+                  Real constantLegNotional,
+                  const FxReset& fxReset);
+    const ext::shared_ptr<FloatingRateCoupon>& underlying() const;
+    Real constantLegNotional() const;
+    const FxReset& fxReset() const;
+    Date fxResetDate() const;
+    Date fxResetValueDate() const;
+    const ext::shared_ptr<FxResetPricer>& fxResetPricer() const;
+    void setFxResetPricer(const ext::shared_ptr<FxResetPricer>& pricer);
+};
+
+%inline %{
+    ext::shared_ptr<FxResetCoupon> as_fx_reset_coupon(
+                                      const ext::shared_ptr<CashFlow>& cf) {
+        return ext::dynamic_pointer_cast<FxResetCoupon>(cf);
+    }
+%}
+
+%shared_ptr(FxResetNotionalExchange)
+class FxResetNotionalExchange : public CashFlow {
+  public:
+    Real constantLegNotional() const;
+    const ext::shared_ptr<FxResetPricer>& fxResetPricer() const;
+    void setFxResetPricer(const ext::shared_ptr<FxResetPricer>& pricer);
+};
+
+%extend FxResetNotionalExchange {
+    FxResetNotionalExchange(const Date& paymentDate,
+                            Real constantLegNotional,
+                            const FxReset* previousReset,
+                            const FxReset* currentReset) {
+        return new FxResetNotionalExchange(
+            paymentDate, constantLegNotional,
+            previousReset ? std::optional<FxReset>(*previousReset) : std::nullopt,
+            currentReset ? std::optional<FxReset>(*currentReset) : std::nullopt);
+    }
+    bool hasPreviousReset() const {
+        return self->previousReset().has_value();
+    }
+    FxReset previousReset() const {
+        QL_REQUIRE(self->previousReset(), "the notional exchange has no previous FX reset");
+        return *self->previousReset();
+    }
+    bool hasCurrentReset() const {
+        return self->currentReset().has_value();
+    }
+    FxReset currentReset() const {
+        QL_REQUIRE(self->currentReset(), "the notional exchange has no current FX reset");
+        return *self->currentReset();
+    }
+};
+
+%inline %{
+    ext::shared_ptr<FxResetNotionalExchange> as_fx_reset_notional_exchange(
+                                      const ext::shared_ptr<CashFlow>& cf) {
+        return ext::dynamic_pointer_cast<FxResetNotionalExchange>(cf);
+    }
+%}
+
+void setFxResetPricer(const Leg&,
+                      const ext::shared_ptr<FxResetPricer>&);
 
 
 %{
@@ -275,7 +401,9 @@ class OvernightIndexedCoupon : public FloatingRateCoupon {
                 bool applyObservationShift = false,
                 bool compoundSpread = false,
                 const Date& rateComputationStartDate = Date(),
-                const Date& rateComputationEndDate = Date());
+                const Date& rateComputationEndDate = Date(),
+                const Date& exCouponDate = Date(),
+                std::optional<Integer> roundingPrecision = std::nullopt);
     const std::vector<Date>& fixingDates() const;
     const std::vector<Date>& interestDates() const;
     const std::vector<Time>& dt() const;
@@ -332,7 +460,23 @@ class CappedFlooredOvernightIndexedCoupon : public FloatingRateCoupon {
 using QuantLib::IborCoupon;
 using QuantLib::CappedFlooredIborCoupon;
 using QuantLib::MultipleResetsCoupon;
+using QuantLib::StubIndexSelection;
+using QuantLib::StubIborCoupon;
 %}
+
+class StubIndexSelection {
+  public:
+    enum Convention {
+        ClosestIndex,
+        Interpolated
+    };
+    StubIndexSelection();
+    StubIndexSelection(Convention convention,
+                       std::vector<ext::shared_ptr<IborIndex> > indices);
+    bool empty() const;
+    Convention convention() const;
+    const std::vector<ext::shared_ptr<IborIndex> >& indices() const;
+};
 
 %shared_ptr(IborCoupon)
 class IborCoupon : public FloatingRateCoupon {
@@ -364,6 +508,29 @@ class IborCoupon : public FloatingRateCoupon {
         }
     }
 };
+
+%shared_ptr(StubIborCoupon)
+class StubIborCoupon : public IborCoupon {
+  public:
+    StubIborCoupon(const Date& paymentDate, Real nominal,
+                   const Date& startDate, const Date& endDate,
+                   Natural fixingDays,
+                   StubIndexSelection stubIndexSelection,
+                   Real gearing = 1.0, Spread spread = 0.0,
+                   const Date& refPeriodStart = Date(),
+                   const Date& refPeriodEnd = Date(),
+                   const DayCounter& dayCounter = DayCounter(),
+                   bool isInArrears = false,
+                   const Date& exCouponDate = Date(),
+                   BusinessDayConvention fixingConvention = Preceding);
+    const StubIndexSelection& stubIndexSelection() const;
+};
+
+%inline %{
+    ext::shared_ptr<StubIborCoupon> as_stub_ibor_coupon(const ext::shared_ptr<CashFlow>& cf) {
+        return ext::dynamic_pointer_cast<StubIborCoupon>(cf);
+    }
+%}
 
 %shared_ptr(CappedFlooredIborCoupon)
 class CappedFlooredIborCoupon : public CappedFlooredCoupon {
@@ -420,6 +587,7 @@ class MultipleResetsCoupon : public FloatingRateCoupon {
 %{
 using QuantLib::IborCouponPricer;
 using QuantLib::BlackIborCouponPricer;
+using QuantLib::OvernightIndexedCouponPricer;
 using QuantLib::CompoundingOvernightIndexedCouponPricer;
 using QuantLib::BlackCompoundingOvernightIndexedCouponPricer;
 using QuantLib::ArithmeticAveragedOvernightIndexedCouponPricer;
@@ -450,13 +618,37 @@ class BlackIborCouponPricer : public IborCouponPricer {
                           const TimingAdjustment timingAdjustment = Black76,
                           const Handle<Quote> correlation =
                                     Handle<Quote>(ext::shared_ptr<Quote>(new SimpleQuote(1.0))),
-                          ext::optional<bool> useIndexedCoupon = ext::nullopt);
+                          std::optional<bool> useIndexedCoupon = std::nullopt);
 };
 
-%shared_ptr(CompoundingOvernightIndexedCouponPricer)
-class CompoundingOvernightIndexedCouponPricer: public FloatingRateCouponPricer {
+%shared_ptr(OvernightIndexedCouponPricer)
+class OvernightIndexedCouponPricer: public FloatingRateCouponPricer {
+  private:
+    OvernightIndexedCouponPricer();
   public:
-    CompoundingOvernightIndexedCouponPricer();
+    void setCapletVolatility(
+               const Handle<OptionletVolatilityStructure>& v = {});
+    const Handle<OptionletVolatilityStructure>& capletVolatility() const;
+    void setEffectiveVolatilityInput(bool effectiveVolatilityInput);
+    bool effectiveVolatilityInput() const;
+    Real effectiveCapletVolatility() const;
+    Real effectiveFloorletVolatility() const;
+};
+
+%inline %{
+    ext::shared_ptr<OvernightIndexedCouponPricer>
+    as_overnight_indexed_coupon_pricer(
+               const ext::shared_ptr<FloatingRateCouponPricer>& pricer) {
+        return ext::dynamic_pointer_cast<OvernightIndexedCouponPricer>(pricer);
+    }
+%}
+
+%shared_ptr(CompoundingOvernightIndexedCouponPricer)
+class CompoundingOvernightIndexedCouponPricer: public OvernightIndexedCouponPricer {
+  public:
+    CompoundingOvernightIndexedCouponPricer(
+               const Handle<OptionletVolatilityStructure>& v = {},
+               bool effectiveVolatilityInput = false);
 };
 
 %shared_ptr(BlackCompoundingOvernightIndexedCouponPricer)
@@ -468,7 +660,7 @@ class BlackCompoundingOvernightIndexedCouponPricer: public CompoundingOvernightI
 };
 
 %shared_ptr(ArithmeticAveragedOvernightIndexedCouponPricer)
-class ArithmeticAveragedOvernightIndexedCouponPricer: public FloatingRateCouponPricer {
+class ArithmeticAveragedOvernightIndexedCouponPricer: public OvernightIndexedCouponPricer {
     #if !defined(SWIGJAVA) && !defined(SWIGCSHARP)
     %feature("kwargs") ArithmeticAveragedOvernightIndexedCouponPricer;
     #endif
@@ -476,7 +668,9 @@ class ArithmeticAveragedOvernightIndexedCouponPricer: public FloatingRateCouponP
     ArithmeticAveragedOvernightIndexedCouponPricer(
             Real meanReversion = 0.03,
             Real volatility = 0.00,  // NO convexity adjustment by default
-            bool byApprox = false);  // TRUE to use Katsumi Takada approximation
+            bool byApprox = false,   // TRUE to use Katsumi Takada approximation
+            const Handle<OptionletVolatilityStructure>& v = {},
+            bool effectiveVolatilityInput = false);
 };
 
 %shared_ptr(BlackAveragingOvernightIndexedCouponPricer)
@@ -705,7 +899,7 @@ class LognormalCmsSpreadPricer : public CmsSpreadCouponPricer {
             const Handle<YieldTermStructure> &couponDiscountCurve =
                 Handle<YieldTermStructure>(),
             const Size IntegrationPoints = 16,
-            const ext::optional<VolatilityType> volatilityType = ext::nullopt,
+            const std::optional<VolatilityType> volatilityType = std::nullopt,
             const Real shift1 = Null<Real>(), const Real shift2 = Null<Real>());
     Real swapletPrice() const;
     Rate swapletRate() const;
@@ -870,7 +1064,8 @@ Leg _IborLeg(const std::vector<Real>& nominals,
              bool exCouponEndOfMonth = false,
              const Calendar& paymentCalendar = Calendar(),
              const Integer paymentLag = 0,
-             ext::optional<bool> withIndexedCoupons = ext::nullopt,
+             std::optional<bool> withIndexedCoupons = std::nullopt,
+             const StubIndexSelection& stubIndexSelection = StubIndexSelection(),
              BusinessDayConvention fixingConvention = Preceding) {
     return QuantLib::IborLeg(schedule, index)
         .withNotionals(nominals)
@@ -889,7 +1084,8 @@ Leg _IborLeg(const std::vector<Real>& nominals,
                             exCouponCalendar,
                             exCouponConvention,
                             exCouponEndOfMonth)
-        .withIndexedCoupons(withIndexedCoupons);
+        .withIndexedCoupons(withIndexedCoupons)
+        .withStubIndexSelection(stubIndexSelection);
 }
 %}
 #if !defined(SWIGJAVA) && !defined(SWIGCSHARP)
@@ -913,7 +1109,8 @@ Leg _IborLeg(const std::vector<Real>& nominals,
              bool exCouponEndOfMonth = false,
              const Calendar& paymentCalendar = Calendar(),
              Integer paymentLag = 0,
-             ext::optional<bool> withIndexedCoupons = ext::nullopt);
+             std::optional<bool> withIndexedCoupons = std::nullopt,
+             const StubIndexSelection& stubIndexSelection = StubIndexSelection());
 
 %{
 Leg _OvernightLeg(const std::vector<Real>& nominals,
@@ -936,8 +1133,9 @@ Leg _OvernightLeg(const std::vector<Real>& nominals,
                   bool dailyCapFloor = false,
                   bool inArrears = true,
                   bool nakedOption = false,
-                  const std::vector<Date>& paymentDates = {}) {
-    return QuantLib::OvernightLeg(schedule, index)
+                  const std::vector<Date>& paymentDates = {},
+                  std::optional<Integer> roundingPrecision = std::nullopt) {
+    auto leg = QuantLib::OvernightLeg(schedule, index)
         .withNotionals(nominals)
         .withPaymentDayCounter(paymentDayCounter)
         .withPaymentAdjustment(paymentConvention)
@@ -957,6 +1155,11 @@ Leg _OvernightLeg(const std::vector<Real>& nominals,
         .inArrears(inArrears)
         .withNakedOption(nakedOption)
         .withPaymentDates(paymentDates);
+
+    if (roundingPrecision.has_value())
+        leg.withRoundingPrecision(*roundingPrecision);
+
+    return leg;
 }
 %}
 #if !defined(SWIGJAVA) && !defined(SWIGCSHARP)
@@ -983,7 +1186,8 @@ Leg _OvernightLeg(const std::vector<Real>& nominals,
                   bool dailyCapFloor = false,
                   bool inArrears = true,
                   bool nakedOption = false,
-                  const std::vector<Date>& paymentDates = {});
+                  const std::vector<Date>& paymentDates = {},
+                  std::optional<Integer> roundingPrecision = std::nullopt);
 
 %{
 Leg _CmsLeg(const std::vector<Real>& nominals,
@@ -1353,7 +1557,7 @@ class CashFlows {
                     Spread zSpread,
                     Compounding compounding,
                     Frequency frequency,
-                    ext::optional<bool> includeSettlementDateFlows = ext::nullopt,
+                    std::optional<bool> includeSettlementDateFlows = std::nullopt,
                     const Date& settlementDate = Date(),
                     const Date& npvDate = Date());
 
@@ -1492,7 +1696,7 @@ class CashFlows {
              const ext::shared_ptr<YieldTermStructure>&,
              Compounding compounding,
              Frequency frequency,
-             ext::optional<bool> includeSettlementDateFlows = ext::nullopt,
+             std::optional<bool> includeSettlementDateFlows = std::nullopt,
              Date settlementDate = Date(),
              Date npvDate = Date(),
              Real accuracy = 1.0e-10,

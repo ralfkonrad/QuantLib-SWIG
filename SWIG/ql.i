@@ -2,6 +2,7 @@
 /*
  Copyright (C) 2000, 2001, 2002, 2003 RiskMap srl
  Copyright (C) 2003, 2004, 2005, 2006, 2007, 2008 StatPro Italia srl
+ Copyright (C) 2026 Kyrylo Protsenko
 
  This file is part of QuantLib, a free-software/open-source library
  for financial quantitative analysts and developers - http://quantlib.org/
@@ -30,8 +31,8 @@
 %{
 #include <ql/quantlib.hpp>
 
-#if QL_HEX_VERSION < 0x01420000
-    #error at least QuantLib 1.42 required, please update
+#if QL_HEX_VERSION < 0x01430000
+    #error at least QuantLib 1.43 required, please update
 #endif
 
 #if defined (SWIGJAVA) || defined (SWIGCSHARP) 
@@ -172,6 +173,7 @@ QL_DEPRECATED_DISABLE_WARNING
 %include options.i
 %include payoffs.i
 %include piecewiseyieldcurve.i
+%include multicurve.i
 %include randomnumbers.i
 %include ratehelpers.i
 %include rounding.i

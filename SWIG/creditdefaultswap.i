@@ -106,7 +106,7 @@ class CreditDefaultSwap : public Instrument {
     Rate runningSpread() const;
     %extend {
         doubleOrNull upfront() const {
-            ext::optional<Rate> result =
+            std::optional<Rate> result =
                 self->upfront();
             if (result)
                 return *result;
@@ -181,7 +181,7 @@ _MAKECDS_METHODS = {
     "couponTenor": "withCouponTenor",
     "dayCounter": "withDayCounter",
     "lastPeriodDayCounter": "withLastPeriodDayCounter",
-    "dateGenerationRule": "withRule",
+    "dateGenerationRule": "withDateGenerationRule",
     "cashSettlementDays": "withCashSettlementDays",
     "tradeDate": "withTradeDate",
     "pricingEngine": "withPricingEngine",
