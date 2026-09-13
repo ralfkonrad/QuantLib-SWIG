@@ -1,83 +1,126 @@
 # R binding for QuantLib-SWIG
 #
-# Produces:
-#   - QuantLib.so — R shared library (in src/)
-#   - QuantLib.R — R wrapper (in R/)
+# R packages carry their own build system: `R CMD INSTALL` compiles src/ using
+# the flags in src/Makevars. So CMake's job here is *not* to compile the
+# wrapper — doing that as well would compile it twice — but to
 #
-# Uses R CMD check/install for building and testing, matching the
-# autotools approach. The SWIG step is done via CMake, then R's own
-# build system takes over for compilation and packaging.
+#   1. run SWIG,
+#   2. stage a complete R package in the build tree, and
+#   3. generate a src/Makevars carrying the QuantLib flags CMake resolved.
+#
+# Step 3 is the point of the exercise: the checked-in R/src/Makevars obtains its
+# flags from `quantlib-config`, whose output omits the Boost include directory
+# and hardcodes the prefix QuantLib was configured with. The generated one uses
+# the imported QuantLib::QuantLib target instead.
 
-# Find R
-find_program(R_EXECUTABLE R)
-if (NOT R_EXECUTABLE)
-    message(FATAL_ERROR "R not found. Please install R or set R_EXECUTABLE.")
-endif()
+find_program(R_EXECUTABLE R REQUIRED)
 message(STATUS "Found R: ${R_EXECUTABLE}")
 
-# Output directories for SWIG-generated files
-set(R_SWIG_SRCDIR "${CMAKE_CURRENT_BINARY_DIR}/src")
-set(R_SWIG_RDIR "${CMAKE_CURRENT_BINARY_DIR}/R")
+# The staged package. R takes the directory name as the package name, so it
+# must be called QuantLib.
+set(R_PACKAGE_DIR "${CMAKE_CURRENT_BINARY_DIR}/QuantLib")
+set(R_PACKAGE_SRCDIR "${R_PACKAGE_DIR}/src")
+set(R_PACKAGE_RDIR "${R_PACKAGE_DIR}/R")
 
-file(MAKE_DIRECTORY "${R_SWIG_SRCDIR}")
-file(MAKE_DIRECTORY "${R_SWIG_RDIR}")
+file(MAKE_DIRECTORY "${R_PACKAGE_SRCDIR}")
+file(MAKE_DIRECTORY "${R_PACKAGE_RDIR}")
 
-# Configure the SWIG source file
-set_property(SOURCE "${QUANTLIB_SWIG_INTERFACE}" PROPERTY CPLUSPLUS ON)
-set_property(SOURCE "${QUANTLIB_SWIG_INTERFACE}" PROPERTY USE_TARGET_INCLUDE_DIRECTORIES ON)
-set_property(SOURCE "${QUANTLIB_SWIG_INTERFACE}" PROPERTY
-    SWIG_MODULE_NAME QuantLib)
+# --- 1. Run SWIG ---
+# Unlike the other bindings this does not go through swig_add_library, so the
+# dependency on the interface files is listed explicitly rather than coming from
+# the USE_SWIG_DEPENDENCIES source property.
+file(GLOB QUANTLIB_SWIG_INTERFACE_FILES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/SWIG/*.i")
 
-# Use SWIG to generate R wrapper
-# Note: R packages have their own build system (R CMD), so we generate
-# the wrapper C++ and R files, then let R CMD handle compilation.
-swig_add_library(QuantLib-R
-    TYPE MODULE
-    LANGUAGE r
-    OUTPUT_DIR "${R_SWIG_SRCDIR}"
-    OUTFILE_DIR "${R_SWIG_SRCDIR}"
-    SOURCES "${QUANTLIB_SWIG_INTERFACE}")
+set(R_WRAP_CXX "${R_PACKAGE_SRCDIR}/QuantLib.cpp")
+set(R_WRAP_R "${R_PACKAGE_RDIR}/QuantLib.R")
 
-# Link against QuantLib
-target_link_libraries(QuantLib-R PRIVATE QuantLib::QuantLib)
-
-# Apply warning flags for SWIG-generated code
-target_compile_options(QuantLib-R PRIVATE ${QUANTLIB_SWIG_CXX_WARNING_FLAGS})
-
-# SWIG .i file dependencies
-set_property(TARGET QuantLib-R PROPERTY SWIG_DEPENDS ${SWIG_INTERFACE_FILES})
-
-# R expects the .so in src/ and .R in R/
-set_target_properties(QuantLib-R PROPERTIES
-    OUTPUT_NAME "QuantLib"
-    PREFIX ""
-    LIBRARY_OUTPUT_DIRECTORY "${R_SWIG_SRCDIR}"
-)
-
-# Move the generated .R file to the R/ subdirectory (SWIG puts it next to the .cpp)
+# -outdir places QuantLib.R directly in R/, so no post-build rename is needed.
 add_custom_command(
-    TARGET QuantLib-R POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E rename
-        "${R_SWIG_SRCDIR}/QuantLib.R"
-        "${R_SWIG_RDIR}/QuantLib.R"
-    COMMENT "Moving QuantLib.R to R/ directory"
+    OUTPUT "${R_WRAP_CXX}" "${R_WRAP_R}"
+    COMMAND "${SWIG_EXECUTABLE}" ${QUANTLIB_SWIG_FLAGS_LIST} -r -c++
+        -outdir "${R_PACKAGE_RDIR}"
+        -o "${R_WRAP_CXX}"
+        "${QUANTLIB_SWIG_INTERFACE}"
+    DEPENDS ${QUANTLIB_SWIG_INTERFACE_FILES}
+    COMMENT "Generating R wrappers with SWIG"
     VERBATIM
 )
 
-# --- R CMD check target (optional) ---
+# --- 2. Stage the package ---
+# DESCRIPTION is generated from the same template the autotools build uses.
+# R rejects version suffixes such as -dev, hence QUANTLIB_SWIG_VERSION_FOR_R.
+set(PACKAGE_VERSION_FOR_R "${QUANTLIB_SWIG_VERSION_FOR_R}")
+configure_file("${CMAKE_CURRENT_SOURCE_DIR}/DESCRIPTION.in"
+    "${R_PACKAGE_DIR}/DESCRIPTION" @ONLY)
+
+set(R_STAGED_FILES)
+foreach(_file NAMESPACE .Rinstignore cleanup)
+    if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${_file}")
+        configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${_file}"
+            "${R_PACKAGE_DIR}/${_file}" COPYONLY)
+        list(APPEND R_STAGED_FILES "${R_PACKAGE_DIR}/${_file}")
+    endif()
+endforeach()
+
+file(GLOB R_DEMO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/demo/*.R")
+foreach(_demo ${R_DEMO_FILES})
+    get_filename_component(_name "${_demo}" NAME)
+    configure_file("${_demo}" "${R_PACKAGE_DIR}/demo/${_name}" COPYONLY)
+endforeach()
+if (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/demo/00Index")
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/demo/00Index"
+        "${R_PACKAGE_DIR}/demo/00Index" COPYONLY)
+endif()
+
+# --- 3. Generate src/Makevars from the imported QuantLib target ---
+# file(GENERATE) is used so that generator expressions resolve; this replaces
+# the `quantlib-config` calls in the checked-in R/src/Makevars.
+file(GENERATE
+    OUTPUT "${R_PACKAGE_SRCDIR}/Makevars"
+    CONTENT "# Generated by CMake — do not edit.
+PKG_CPPFLAGS=-I$<JOIN:$<TARGET_PROPERTY:QuantLib::QuantLib,INTERFACE_INCLUDE_DIRECTORIES>, -I>
+PKG_LIBS=$<TARGET_LINKER_FILE:QuantLib::QuantLib>
+PKG_CXXFLAGS=$<JOIN:${QUANTLIB_SWIG_CXX_WARNING_FLAGS}, >
+CXX_STD=CXX17
+")
+
+add_custom_target(QuantLib-R ALL
+    DEPENDS "${R_WRAP_CXX}" "${R_WRAP_R}" "${R_PACKAGE_SRCDIR}/Makevars"
+            ${R_STAGED_FILES})
+
+# --- R CMD INSTALL / check, operating on the staged package ---
+# The library is installed into the build tree so that the demos can be run
+# without touching the user's R library.
+set(R_LIBRARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/Rlibrary")
+file(MAKE_DIRECTORY "${R_LIBRARY_DIR}")
+
+set(R_INSTALL_STAMP "${CMAKE_CURRENT_BINARY_DIR}/r-install.stamp")
+add_custom_command(
+    OUTPUT "${R_INSTALL_STAMP}"
+    COMMAND "${R_EXECUTABLE}" CMD INSTALL --library=${R_LIBRARY_DIR} "${R_PACKAGE_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch "${R_INSTALL_STAMP}"
+    DEPENDS QuantLib-R "${R_WRAP_CXX}"
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+    COMMENT "Running R CMD INSTALL into the build tree"
+    VERBATIM
+)
+add_custom_target(QuantLib-R-install ALL DEPENDS "${R_INSTALL_STAMP}")
+
 add_custom_target(QuantLib-R-check
-    COMMAND "${R_EXECUTABLE}" CMD check "${CMAKE_CURRENT_SOURCE_DIR}"
+    COMMAND "${R_EXECUTABLE}" CMD check "${R_PACKAGE_DIR}"
     DEPENDS QuantLib-R
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/.."
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
     COMMENT "Running R CMD check"
     VERBATIM
 )
 
-# --- R CMD INSTALL target (optional) ---
-add_custom_target(QuantLib-R-install
-    COMMAND "${R_EXECUTABLE}" CMD INSTALL "${CMAKE_CURRENT_SOURCE_DIR}"
-    DEPENDS QuantLib-R
-    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
-    COMMENT "Running R CMD INSTALL"
-    VERBATIM
-)
+# --- Tests ---
+# Mirrors .ci/r.check, which runs every demo script.
+find_program(RSCRIPT_EXECUTABLE Rscript REQUIRED)
+foreach(_demo ${R_DEMO_FILES})
+    get_filename_component(_name "${_demo}" NAME_WE)
+    add_test(NAME r-demo-${_name}
+        COMMAND "${RSCRIPT_EXECUTABLE}" "${_demo}")
+    set_tests_properties(r-demo-${_name} PROPERTIES
+        ENVIRONMENT "R_LIBS=${R_LIBRARY_DIR}")
+endforeach()

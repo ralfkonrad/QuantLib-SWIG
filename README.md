@@ -36,6 +36,54 @@ for feedback, questions, etc.  More information and instructions for
 subscribing are at <https://www.quantlib.org/mailinglists.shtml>.
 
 
+
+Building
+--------
+
+The canonical build is the autotools one:
+
+```
+./autogen.sh
+./configure
+make
+```
+
+A CMake build is available alongside it. It builds and tests the same bindings,
+but it does not replace autotools: source distributions (`make dist`), the
+Python wheels published to PyPI and the NuGet package are all still produced by
+the autotools build.
+
+The CMake build requires a QuantLib that was itself built with CMake, and its
+location is an explicit input — it is never guessed:
+
+```
+# against an installed QuantLib
+cmake -S . -B build -DCMAKE_PREFIX_PATH=/path/to/quantlib/prefix
+
+# or directly against an uninstalled QuantLib build tree
+cmake -S . -B build -DQuantLib_DIR=/path/to/quantlib/build/cmake
+
+cmake --build build
+ctest --test-dir build --output-on-failure
+```
+
+Bindings whose toolchain is not installed are skipped; the configuration summary
+lists what was enabled. Each can be forced on or off explicitly:
+
+| Option | Default |
+| --- | --- |
+| `QUANTLIB_SWIG_BUILD_PYTHON` | on if Python 3 with development headers is found |
+| `QUANTLIB_SWIG_BUILD_JAVA` | on if a JDK and JNI headers are found |
+| `QUANTLIB_SWIG_BUILD_CSHARP` | on if `dotnet` is found |
+| `QUANTLIB_SWIG_BUILD_R` | on if `R` is found |
+| `QUANTLIB_SWIG_BUILD_SCALA` | on if `scalac` and `scala` are found |
+| `QUANTLIB_SWIG_FLAGS` | extra flags for `swig`, e.g. `-Werror` |
+
+`CMakePresets.json` provides `default`, `debug`, `strict` (SWIG warnings as
+errors) and `python-only` presets; set the `QUANTLIB_PREFIX` environment
+variable, or record your own paths in a `CMakeUserPresets.json`.
+
+
 Contributing
 ------------
 
@@ -57,4 +105,3 @@ library is complex, and thus it might take some time to become
 familiar with it and to use it in an idiomatic way.
 
 We're looking forward to your contributions.
-

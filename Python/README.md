@@ -31,3 +31,10 @@ Finally, testing the wheel requires `tox`, also available via
 `pip install`.  Once available, running `tox run` will run the
 test suite.
 
+
+## Building with CMake
+
+A CMake build is available as an alternative to the autotools build described
+above; see the "Building" section of the top-level `README.md`. It requires a
+CMake-built QuantLib and does not produce a wheel — that remains the job of
+`make` / `python -m build --wheel`.

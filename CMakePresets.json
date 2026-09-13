@@ -1,0 +1,101 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 20,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "$env{QUANTLIB_PREFIX}",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      },
+      "environment": {
+        "QUANTLIB_PREFIX": ""
+      }
+    },
+    {
+      "name": "default",
+      "inherits": "base",
+      "displayName": "Default",
+      "description": "Release build of every binding whose toolchain is present. Set QUANTLIB_PREFIX to the QuantLib install prefix, or override QuantLib_DIR to point at an uninstalled QuantLib build tree."
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "displayName": "Debug",
+      "description": "Debug build, otherwise identical to the default preset.",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "strict",
+      "inherits": "base",
+      "displayName": "Strict",
+      "description": "Like default, but treats SWIG warnings as errors, matching what CI passes as SWIGFLAGS='-Werror'.",
+      "cacheVariables": {
+        "QUANTLIB_SWIG_FLAGS": "-Werror"
+      }
+    },
+    {
+      "name": "python-only",
+      "inherits": "base",
+      "displayName": "Python only",
+      "description": "Builds just the Python binding.",
+      "cacheVariables": {
+        "QUANTLIB_SWIG_BUILD_JAVA": "OFF",
+        "QUANTLIB_SWIG_BUILD_CSHARP": "OFF",
+        "QUANTLIB_SWIG_BUILD_R": "OFF",
+        "QUANTLIB_SWIG_BUILD_SCALA": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "debug",
+      "configurePreset": "debug"
+    },
+    {
+      "name": "strict",
+      "configurePreset": "strict"
+    },
+    {
+      "name": "python-only",
+      "configurePreset": "python-only"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "strict",
+      "configurePreset": "strict",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "python-only",
+      "configurePreset": "python-only",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}
